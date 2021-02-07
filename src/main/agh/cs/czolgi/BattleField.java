@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 public class BattleField implements IPositionChangeObserver {
     private final int MIN_ENEMY_DISTANCE;
-    private final Random generator = new Random();
+    private final static Random generator = new Random();
     private final ArrayList<IFieldChangeObserver> observers = new ArrayList<>();
     private final Map<Vector2d, IKillableEntity> killableEntityMap = new HashMap<>();
     private final Map<Vector2d, Powerups> powerupMap = new HashMap<>();
@@ -61,7 +61,7 @@ public class BattleField implements IPositionChangeObserver {
     public void placePowerup() {
         if (freePowerUpSpot) {
             Vector2d position = this.drawFreePosition();
-            Powerups powerup = Powerups.toEnum(this.generator.nextInt(6));
+            Powerups powerup = Powerups.toEnum(generator.nextInt(6));
             this.powerupMap.put(position, powerup);
             this.fieldChanged(position);
         }

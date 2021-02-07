@@ -10,18 +10,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class BattleEngine{
-    private final static int ROUND_DELAY = 40;
     private final Map<Vector2d, Tank> enemyTankMap = new HashMap<>();
     private final Multimap<Vector2d, Bullet> bulletMap = ArrayListMultimap.create();
     private final BattleField battleField;
-    private final Random generator = new Random();
-    private volatile boolean isPaused = false;
+    private boolean isPaused = false;
     private AtomicInteger moveCount = new AtomicInteger(1);
     private AtomicInteger baseMoveCount = new AtomicInteger(1);
     private final BattleGUI battleGUI;
     private final Tank player;
     private int score = 0;
 
+    private final static Random generator = new Random();
+    private final static int ROUND_DELAY = 40;
     private final static int MAX_DAYS_WITHOUT_OBSTACLE = 5;
     private final static int MAX_DAYS_WITHOUT_ENEMY = 60;
     private final static int MAX_DAYS_WITHOUT_POWERUP = 20;
@@ -61,28 +61,13 @@ public class BattleEngine{
             while (true) {
                 if (this.player.isDead()) {
                     this.battleGUI.updateStats();
-                    this.pauseBattle();
                     break;
                 }
 
                 this.battleField.findFreeSpots(this.player.getPosition());
-
                 this.placeObjects();
-
                 this.battleGUI.updatePowerups();
-
-                this.moveCount = new AtomicInteger(this.player.getMoveCount());
-                this.baseMoveCount = this.moveCount;
-                this.isPaused = true;
-
-                while (this.isPaused) {
-                    while (this.moveCount.intValue() > 0) {
-                        Thread.onSpinWait();
-                    }
-                    this.player.reduceActivePowerupsDurations();
-                    this.resumeBattle();
-                }
-
+                this.processPlayersActions();
                 this.moveBullets();
                 this.moveEnemies();
 
@@ -93,17 +78,28 @@ public class BattleEngine{
                 }
             }
             Platform.runLater(this.battleGUI::showGameOverAlert);
-            while (true) {
+        }).start();
+    }
+
+    private void processPlayersActions() {
+        this.moveCount = new AtomicInteger(this.player.getMoveCount());
+        this.baseMoveCount = this.moveCount;
+        this.pauseBattle();
+
+        while (this.isPaused) {
+            while (this.moveCount.intValue() > 0) {
                 Thread.onSpinWait();
             }
-        }).start();
+            this.player.reduceActivePowerupsDurations();
+            this.resumeBattle();
+        }
     }
 
     // place enemies, obstacles and powerups on the map
     private void placeObjects() {
         if ((this.enemyTankMap.values().size() == 0
                 || daysWithoutEnemy >= MAX_DAYS_WITHOUT_ENEMY
-                || this.generator.nextFloat() < 1.0 / MAX_DAYS_WITHOUT_ENEMY)
+                || generator.nextFloat() < 1.0 / MAX_DAYS_WITHOUT_ENEMY)
                 && this.battleField.hasFreeEnemySpot()
         ) {
             Tank enemy = new Tank(battleField, battleField.drawTankPosition(player), false, this.enemiesSpawnWithPowerups);
@@ -116,7 +112,7 @@ public class BattleEngine{
 
         if(this.placeObstacles) {
             if ((this.daysWithoutObstacle >= MAX_DAYS_WITHOUT_OBSTACLE
-                    || this.generator.nextFloat() < 1.0 / MAX_DAYS_WITHOUT_OBSTACLE)
+                    || generator.nextFloat() < 1.0 / MAX_DAYS_WITHOUT_OBSTACLE)
                     && this.battleField.hasFreeObstacleSpot()
             ) {
                 this.battleField.placeObstacle();
@@ -128,7 +124,7 @@ public class BattleEngine{
 
         if(this.placePowerups){
             if ((this.daysWithoutPowerup >= MAX_DAYS_WITHOUT_POWERUP
-                    || this.generator.nextFloat() < 1.0 / MAX_DAYS_WITHOUT_POWERUP)
+                    || generator.nextFloat() < 1.0 / MAX_DAYS_WITHOUT_POWERUP)
                     && this.battleField.hasFreePowerupSpot()
             ) {
                 this.battleField.placePowerup();
